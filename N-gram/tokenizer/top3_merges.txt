@@ -1,5 +1,0 @@
-# Top-3 vocabulary settings for GPT team
-# These represent different vocab size targets
-100
-500
-1000
