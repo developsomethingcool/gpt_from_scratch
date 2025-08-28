@@ -1,0 +1,57 @@
+# configs/tokenizer.yaml
+version: 1
+seed: 42
+
+type: bpe
+
+data:
+  train_path: data/shakespeare_train.txt
+  val_path: data/shakespeare_val.txt
+  test_path: data/shakespeare_test.txt
+  train_only_for_tokenizer: true   # guard against leakage
+
+normalization:
+  lowercase: true
+  unicode_normalization: "NFKC"
+  collapse_whitespace: true        # collapse runs of spaces/tabs
+  preserve_punctuation: true
+  keep_newlines: true
+  newline_token: "\n"              # alternatively "[NEWLINE]"
+
+special_tokens:
+  bos: "<BOS>"
+  eos: "<EOS>"
+  pad: null                        # fixed-block training ⇒ no PAD needed
+  unk: null                        # BPE should avoid OOVs; leave null unless you want a safety valve
+
+bpe:
+  merges_grid: [200, 500, 1000, 2000, 5000]  # sweep; pick top-3 by n-gram PPL later
+  min_pair_freq: 2
+  tie_break: "lexicographic"       # deterministic merge tie-breaking
+  initial_alphabet: "utf8_chars"   # or "byte" if you prefer byte-level BPE
+  save_each_merge_model: true
+
+artifacts:
+  output_dir: "tokenizers/"
+  filename_template: "bpe_{merges:04d}"
+  write_config_snapshot: true
+  write_corpus_checksum: true
+  checksum_algo: "sha1"
+
+diagnostics:
+  enabled: true
+  log_csv: "logs/tokenizer_metrics.csv"
+  metrics: ["avg_tokens_per_line", "type_token_ratio", "oov_rate", "seq_len_hist"]
+
+dataloader:
+  block_size: 256
+  add_bos: false
+  add_eos: true
+  padding: "none"
+  newline_policy: "explicit_token"
+
+selection_for_gpt:
+  metric: "val_token_ppl"
+  ngram_ppl_csv: "logs/ngram_ppl.csv"
+  select_top_k_merges: 3
+  write_selection_table: "logs/top_merges_for_gpt.csv"
