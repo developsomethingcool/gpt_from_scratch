@@ -21,7 +21,7 @@ LOGS_DIR      = Path("logs")
 LOGS_DIR.mkdir(parents=True, exist_ok=True)
 
 # ---------- Config ----------
-MERGES_GRID = [200, 500, 1000, 2000, 5000]  # sweep; pick top-3 with lowest val PPL
+MERGES_GRID = [100, 200, 300]  # sweep; pick top-3 with lowest val PPL
 NGRAM_N     = [1, 2, 3, 4]                             # trigram LM
 DELTA       = 1.0                           # Laplace smoothing
 SEED        = 42
@@ -336,7 +336,7 @@ def sweep_and_select_topK(merges_grid: List[int], n_values_grid: List[int], top_
         w.writeheader()
         for row in results:
             w.writerow(row)
-    print(f"\n📄 Wrote sweep results: {ppl_csv}")
+    print(f"\nWrote sweep results: {ppl_csv}")
 
     # Select top-K by lowest validation PPL
     results_sorted = sorted(results, key=lambda r: r["val_token_ppl"])
