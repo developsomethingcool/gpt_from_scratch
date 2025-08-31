@@ -31,14 +31,14 @@ def normalize_text(
     if not keep_newlines:
         s = s.replace("\r\n", " ").replace("\r", " ").replace("\n", " ")
     else:
-        # Normalize CRLF/CR to LF
+        # normalize CRLF/CR to LF
         s = s.replace("\r\n", "\n").replace("\r", "\n")
 
     if lowercase:
         s = s.lower()
 
     if collapse_whitespace:
-        # Collapse spaces and tabs (but do NOT touch newlines)
+        # collapse spaces and tabs (but do NOT touch newlines)
         s = re.sub(r"[ \t]+", " ", s)
 
     return s
@@ -126,7 +126,7 @@ class BPETokenizer:
             if tok is not None:
                 self.special_tokens.append(tok)
 
-        # Normalization options
+        # normalization options
         self.lowercase = lowercase
         self.unicode_normalization = unicode_normalization
         self.collapse_whitespace = collapse_whitespace
@@ -134,17 +134,17 @@ class BPETokenizer:
         
         self.tie_break = tie_break
 
-        # Artifacts
+        # artifacts
         self.vocab: Dict[int, str] = {}         # id -> symbol (symbol is a unicode string of byte-mapped chars)
         self.inverse_vocab: Dict[str, int] = {} # symbol -> id
         self.merges_list: List[Tuple[str, str]] = []  # ordered list of merges (a,b)
         self.bpe_ranks: Dict[Tuple[str, str], int] = {}  # (a,b) -> rank
 
-        # Remember last training settings for snapshot
+        # remember last training settings for snapshot
         self._last_merges = 0
         self._last_corpus_sha1: Optional[str] = None
 
-        # Assign special token IDs first
+        # assign special token IDs first
         cur_id = 0
         for tok in self.special_tokens:
             if tok in self.inverse_vocab:
@@ -153,7 +153,7 @@ class BPETokenizer:
             self.inverse_vocab[tok] = cur_id
             cur_id += 1
 
-        # Add all 256 byte symbols to vocab (no OOV ever)
+        # add all 256 byte symbols to vocab (no OOV ever)
         for b in range(256):
             sym = byte_to_safe_unicode(b)
             self.vocab[cur_id] = sym
@@ -177,7 +177,6 @@ class BPETokenizer:
         if guard_train_only and source_tag.lower() != "train":
             raise RuntimeError("Refusing to train tokenizer: source_tag != 'train' while guard_train_only=True.")
 
-        # Normalize and compute checksum for snapshot
         text_norm = normalize_text(
             text,
             lowercase=self.lowercase,
@@ -188,10 +187,10 @@ class BPETokenizer:
 
         self._last_corpus_sha1 = hashlib.sha1(text_norm.encode("utf-8")).hexdigest()
 
-        # Represent the corpus as a flat list of base symbols (byte-mapped chars)
+        # represent the corpus as a flat list of base symbols (byte-mapped chars)
         symbols: List[str] = text_to_byte_symbols(text_norm)
      
-        # Run merges
+        # run merges
         for _ in range(merges):
             pair = self._most_frequent_pair(symbols)
             if pair is None:
@@ -209,7 +208,7 @@ class BPETokenizer:
             self.vocab[new_id] = merged
             self.inverse_vocab[merged] = new_id
 
-        # Build rank table for encode()
+        # build rank table for encode()
         self.bpe_ranks = {pair: i for i, pair in enumerate(self.merges_list)}
         self._last_merges = len(self.merges_list)
 
@@ -223,7 +222,7 @@ class BPETokenizer:
         if not ctr:
             return None
 
-        # Deterministic tie-break: (count DESC, merged_string LEX, a LEX, b LEX)
+        # deterministic tie-break: (count DESC, merged_string LEX, a LEX, b LEX)
         def key(item):
             (a, b), cnt = item
             return (cnt, a + b, a, b)
@@ -261,16 +260,16 @@ class BPETokenizer:
             keep_newlines=self.keep_newlines,
         )
 
-        # Start with base symbols (one per byte)
+        # start with base symbols (one per byte)
         symbols = text_to_byte_symbols(text_norm)
 
-        # Iteratively merge lowest-rank pairs until no more found
+        # iteratively merge lowest-rank pairs until no more found
         if self.bpe_ranks:
             while True:
                 pairs = set(zip(symbols, symbols[1:]))
                 if not pairs:
                     break
-                # Choose the pair with the BEST (lowest) rank among known merges
+                # choose the pair with the BEST (lowest) rank among known merges
                 bigram = None
                 best_rank = sys.maxsize
                 for p in pairs:
@@ -283,7 +282,7 @@ class BPETokenizer:
                 a, b = bigram
                 merged = a + b
 
-                # Merge all occurrences of (a,b)
+                # merge all occurrences of (a,b)
                 i = 0
                 out: List[str] = []
                 while i < len(symbols):
@@ -298,14 +297,13 @@ class BPETokenizer:
                 if len(symbols) == 1:
                     break
 
-        # Map symbols -> ids
+        # map symbols to ids
         ids = []
         if add_bos and "<BOS>" in self.inverse_vocab:
             ids.append(self.inverse_vocab["<BOS>"])
         for sym in symbols:
             tid = self.inverse_vocab.get(sym)
             if tid is None:
-                # This should not happen (all base bytes + merges are in vocab)
                 raise KeyError(f"Symbol not in vocab, can't encode: {repr(sym)}")
             ids.append(tid)
         if add_eos and "<EOS>" in self.inverse_vocab:
@@ -351,7 +349,7 @@ class BPETokenizer:
             for a, b in self.merges_list:
                 f.write(f"{a} {b}\n")
 
-        # config.yaml snapshot (no external deps)
+        # config.yaml snapshot 
         if snapshot is None:
             snapshot = BPETokenizerConfigSnapshot(
                 version=1,
@@ -388,15 +386,15 @@ class BPETokenizer:
         """
         base = os.path.join(out_dir, tag)
 
-        # Load vocab
+        # load vocab
         with io.open(base + "_vocab.json", "r", encoding="utf-8") as f:
             vocab = json.load(f)
-        # Instantiate a bare tokenizer and inject artifacts
+        # instantiate a bare tokenizer and inject artifacts
         tok = cls()
         tok.vocab = {int(k): v for k, v in vocab.items()}
         tok.inverse_vocab = {v: int(k) for k, v in tok.vocab.items()}
 
-        # Load merges
+        # load merges
         merges_path = base + "_merges.txt"
         tok.merges_list = []
         tok.bpe_ranks = {}
@@ -418,7 +416,7 @@ class BPETokenizer:
         """
         Quick health metrics (use on train/val to guide merge-count selection).
         """
-        # Tokenize line-by-line with EOS (BOS not needed for stats)
+        # tokenize line-by-line with EOS 
         lengths = []
         total_tokens = 0
         for ln in lines:
@@ -428,11 +426,10 @@ class BPETokenizer:
             total_tokens += L
 
         avg_tokens_per_line = (sum(lengths) / max(len(lengths), 1)) if lengths else 0.0
-        # Type-token ratio: unique token types / total tokens (rough heuristic)
+        # unique token types / total tokens (rough heuristic)
         unique_types = len(self.vocab)
         ttr = unique_types / max(total_tokens, 1)
 
-        # OOV should be ~0 with byte-level BPE; if encode() raised, you'd notice
         metrics = dict(
             avg_tokens_per_line=avg_tokens_per_line,
             type_token_ratio=ttr,
