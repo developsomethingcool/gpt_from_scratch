@@ -25,13 +25,13 @@ class ModelTrainer:
         self.experiment_dir = experiment_dir or Path("experiments")
         self.experiment_dir.mkdir(exist_ok=True, parents=True)
 
-        # Simplified device setup with basic fallback
-        self.device = self._setup_device()
+        # simplified device setup with basic fallback
+        self.device = self.setup_device()
         self.device_type = self.device.type
         
-        # Keep device optimizations for better performance
-        self._setup_device_optimizations()
-        self._setup_logging()
+        # keep device optimizations for better performance
+        self.setup_device_optimizations()
+        self.setup_logging()
         
         self.epochs = config.get('epochs', 10)
         self.lr = config.get('learning_rate', 3e-4)
@@ -42,7 +42,7 @@ class ModelTrainer:
         
         self.logger.info(f"Initialized trainer on {self.device}")
 
-    def _setup_device(self):
+    def setup_device(self):
         """
         Simple device setup with minimal fallback logic
         """
@@ -60,12 +60,12 @@ class ModelTrainer:
 
 
 
-    def _log_device_info(self, message: str):
+    def log_device_info(self, message: str):
         """Log device info"""
         print(message)  
         self._device_message = message  
 
-    def _setup_device_optimizations(self):
+    def setup_device_optimizations(self):
         """
         Configure optimizations based on detected device
         """
@@ -81,27 +81,27 @@ class ModelTrainer:
             # CPU optimization - use all available cores
             torch.set_num_threads(torch.get_num_threads())
 
-        # Mixed precision setup (device-specific)
+        # mixed precision setup (device-specific)
         self.use_amp = (
             self.device_type in ["cuda", "mps"] and 
             self.config.get('use_mixed_precision', False)
         )
         
-        # Scaler only for CUDA
+        # scaler only for CUDA
         if self.use_amp and self.device_type == "cuda":
             self.scaler = torch.cuda.amp.GradScaler()
         else:
             self.scaler = None
         
-        # Efficient attention check (universal)
+        # efficient attention check (universal)
         self._use_efficient_attention = hasattr(torch.nn.functional, 'scaled_dot_product_attention')
         
-        # Enable optimized operations if available
+        # enable optimized operations if available
         if hasattr(torch.backends, 'opt_einsum'):
             torch.backends.opt_einsum.enabled = True
 
 
-    def _setup_logging(self):
+    def setup_logging(self):
         """Setup logging system"""
         logging.basicConfig(
             level=logging.INFO,
@@ -113,11 +113,11 @@ class ModelTrainer:
         )
         self.logger = logging.getLogger(self.__class__.__name__)
         
-        # Log the device message that was stored earlier
+        # log the device message that was stored earlier
         if hasattr(self, '_device_message'):
             self.logger.info(self._device_message)
         
-        # Log optimizations
+        # log optimizations
         if self.use_amp:
             self.logger.info("Mixed precision training enabled")
         if self._use_efficient_attention:
@@ -158,10 +158,10 @@ class ModelTrainer:
         """
         Universal neural model training 
         """
-         # Move model to device
+         # move model to device
         model = model.to(self.device)
         
-        # Model compilation if available
+        # model compilation if available
         if hasattr(torch, 'compile') and self.device_type in ["cuda", "mps"]:
             try:
                 model = torch.compile(model)
@@ -169,22 +169,22 @@ class ModelTrainer:
             except Exception as e:
                 self.logger.warning(f"Model compilation failed: {e}")
         
-        # Setup optimizer
+        # setup optimizer
         optimizer = self._setup_optimizer(model)
         
-        # Create data loaders
+        # create data loaders
         train_loader = self._prepare_data(train_data)
         val_loader = self._prepare_data(val_data) if val_data else None
         
-        # Training loop
+        # training loop
         for epoch in range(self.epochs):
             self.logger.info(f"Epoch {epoch+1}/{self.epochs}")
             
-            # Train one epoch
+            # train one epoch
             train_metrics = self._train_epoch(model, optimizer, train_loader)
             self.train_metrics.append(train_metrics)
             
-            # Validate
+            # validate
             if val_loader:
                 val_metrics = self._validate(model, val_loader)
                 self.val_metrics.append(val_metrics)
@@ -208,12 +208,12 @@ class ModelTrainer:
             'eps': 1e-8
         }
         
-        # Device-specific optimizer tweaks
+        # device-specific optimizer tweaks
         if self.device_type == "mps":
-            # Apple Silicon sometimes benefits from slightly different settings
+            # for Apple Silicon 
             base_params['betas'] = (0.9, 0.95)
         elif self.device_type == "cpu":
-            # CPU training often works better with slightly higher epsilon
+            # for CPU training 
             base_params['eps'] = 1e-7
         
         return optim.AdamW(model.parameters(), **base_params)
@@ -226,10 +226,10 @@ class ModelTrainer:
         total_loss = 0
         
         for batch_idx, batch in enumerate(data_loader):
-            # Prepare batch for current device
+            # prepare batch for current device
             inputs, targets = self._prepare_batch(batch)
             
-            # Forward and backward pass with mixed precision support
+            # forward and backward pass with mixed precision support
             if self.use_amp and self.device_type == "cuda":
                 # CUDA mixed precision
                 with torch.cuda.amp.autocast():
@@ -247,7 +247,7 @@ class ModelTrainer:
                 self.scaler.update()
                 optimizer.zero_grad()
             else:
-                # Standard training (works for MPS and CPU)
+                # standard training 
                 logits = model(inputs)
                 loss = self._compute_loss(logits, targets, model.vocab_size)
                 
@@ -264,7 +264,7 @@ class ModelTrainer:
             
             total_loss += loss.item()
             
-            # Progress logging
+            # progress logging
             if batch_idx % 100 == 0:
                 self.logger.debug(f"Batch {batch_idx}/{len(data_loader)}: loss={loss.item():.4f}")
         
@@ -296,11 +296,11 @@ class ModelTrainer:
         if isinstance(batch, (list, tuple)):
             inputs, targets = batch
         else:
-            # Handle different data formats
+            # handle different data formats
             inputs = batch[:-1]
             targets = batch[1:]
         
-        # Move to device efficiently
+        # move to device efficiently
         inputs = inputs.to(self.device, non_blocking=True)
         targets = targets.to(self.device, non_blocking=True)
         
@@ -317,10 +317,10 @@ class ModelTrainer:
             # N-gram models accept token sequences directly
             return data
         elif isinstance(data, DataLoader):
-            # Already prepared
+            # already prepared
             return data
         elif isinstance(data, torch.Tensor):
-            # Create tensor dataset with sliding window for autoregressive training
+            # create tensor dataset with sliding window for autoregressive training
             seq_length = self.config.get("context_size", 128)  
             inputs = data[:, :-1]  # All tokens except last
             targets = data[:, 1:]   # All tokens except first
@@ -333,9 +333,9 @@ class ModelTrainer:
                 pin_memory=(self.device_type != "cpu")
             )
         elif isinstance(data, list):
-            # Convert token list to tensor
+            # convert token list to tensor
             data_tensor = torch.tensor(data, dtype=torch.long)
-            # Then convert to DataLoader
+            # then convert to DataLoader
             return self._prepare_data(data_tensor)
         else:
             raise ValueError(f"Unsupported data type: {type(data)}")
