@@ -1,0 +1,10 @@
+version: 1
+seed: 42
+merges: 300
+unicode_normalization: NFKC
+lowercase: true
+collapse_whitespace: true
+keep_newlines: true
+tie_break: lexicographic
+vocab_size: 558
+corpus_sha1: a6449874dbd321c3fb79325a46198cdbba92fde1
