@@ -32,7 +32,7 @@ class CausalSelfAttention(nn.Module):
         self.dropout = nn.Dropout(dropout)
         
         # create causal mask that will be used by cpu or gpu
-        self.register_buffer("mask", None)
+        self.register_buffer("mask", None, persistent=False)
     
     
     def forward(self, x):
@@ -40,9 +40,15 @@ class CausalSelfAttention(nn.Module):
 
         # causal mask updated if sequence length changed
         if self.mask is None or self.mask.size(0) != T:
-            mask = torch.triu(torch.ones(T, T), diagonal=1).bool()
-            self.mask = mask
+            # create mask directly on mls or cuda
+            mask = torch.triu(torch.ones(T, T, device=x.device), diagonal=1).bool()
+            self.register_buffer("mask", mask, persistent=False)
         
+        # ensure mask is on correct device for cuda or mls optimisation
+        elif self.mask.device != x.device:
+            self.register_buffer("mask", self.mask.to(x.device), persistent=False)
+        
+
         # projection to query, key, value including reshaping for multi head attention
         q = self.query(x).view(B, T, self.n_heads, self.head_dim).transpose(1, 2)  
         k = self.key(x).view(B, T, self.n_heads, self.head_dim).transpose(1, 2)
