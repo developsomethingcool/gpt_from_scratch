@@ -64,16 +64,26 @@ class FeedForward(nn.Module):
 
     def __init__(self, embedding_dim, hidden_dim=None, dropout=0.1):
         super().__init__()
+        if hidden_dim is None:
+            hidden_dim = 4 * embedding_dim
 
-        pass
+        self.fc1 = nn.Linear(embedding_dim, hidden_dim)
+        self.gelu = nn.GELU()
+        self.fc2 = nn.Linear(hidden_dim, embedding_dim)
+        self.dropout = nn.Dropout(dropout)
+
     
     def forward(self, x):
-        pass
+        x = self.fc1(x)
+        x = self.gelu(x)
+        x = self.fc2(x)
+        x = self.dropout(x)
+        return x
 
 
 
 class MiniGPT(nn.Module):
-    def __init__(self, vocab_size, embedding_dim, context_size):
+    def __init__(self, vocab_size, embedding_dim, context_size, n_layers=4, n_heads=4, dropout=0.1):
         super().__init__()
         pass
         
