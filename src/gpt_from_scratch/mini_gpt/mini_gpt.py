@@ -82,6 +82,25 @@ class FeedForward(nn.Module):
 
 
 
+class TransformerBlock(nn.Module):
+    """
+    Transformer block with pre-layer normalization
+    """
+
+    def __init__(self, embedding_dim, n_heads, dropout=0.1):
+        super().__init__()
+        self.ln1 = nn.LayerNorm(embedding_dim)
+        self.attn = CausalSelfAttention(embedding_dim, n_heads, dropout)
+        self.ln2 = nn.LayerNorm(embedding_dim)
+        self.ffn = FeedForward(embedding_dim, dropout=dropout)
+
+    def forward(self, x):
+        x = x + self.attn(self.ln1(x))
+        x = x + self.ffn(self.ln2(x))
+        return x
+
+
+
 class MiniGPT(nn.Module):
     def __init__(self, vocab_size, embedding_dim, context_size, n_layers=4, n_heads=4, dropout=0.1):
         super().__init__()
