@@ -21,7 +21,9 @@ LOGS_DIR      = Path("logs")
 LOGS_DIR.mkdir(parents=True, exist_ok=True)
 
 # ---------- Config ----------
-MERGES_GRID = [100, 200, 300]  # sweep; pick top-3 with lowest val PPL
+#MERGES_GRID = [100, 200, 300]  # sweep; pick top-3 with lowest val PPL
+MERGES_GRID = [100, 200, 300, 500, 1000]  # sweep; pick top-3 with lowest val PPL
+
 NGRAM_N     = [1, 2, 3, 4]                             # trigram LM
 DELTA       = 1.0                           # Laplace smoothing
 SEED        = 42
