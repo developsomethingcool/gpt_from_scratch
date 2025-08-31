@@ -15,6 +15,7 @@ class NeuralNGramModel(nn.Module):
         super().__init__()
         # required for the trainer's loss calculation
         self.vocab_size = vocab_size  
+        self.context_size = context_size  
         self.embedding = nn.Embedding(vocab_size, embedding_dim)
         self.dropout = nn.Dropout(dropout)
         self.mlp = nn.Sequential(
@@ -54,17 +55,16 @@ class NeuralNGramModel(nn.Module):
             Tensor: Generated token IDs
         """
         self.eval()
-        context_size = input_ids.size(1)
         generated = input_ids.clone()
         
         with torch.no_grad():
             for _ in range(max_new_tokens):
                 # take the last context_size tokens as input
-                inputs = generated[:, -context_size:] 
+                inputs = generated[:, -self.context_size:] if generated.size(1) >= self.context_size else generated
                 
-                # ff we don't have enough context yet, pad with zeros
-                if inputs.size(1) < context_size:
-                    pad_size = context_size - inputs.size(1)
+                # If we don't have enough context yet, pad with zeros
+                if inputs.size(1) < self.context_size:
+                    pad_size = self.context_size - inputs.size(1)
                     padding = torch.zeros((1, pad_size), dtype=torch.long, device=inputs.device)
                     inputs = torch.cat([padding, inputs], dim=1)
                 
